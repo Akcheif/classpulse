@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ClassPulse</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--tx:#1b2333;--mu:#6b7690;--bd:#e1e6f0;--pr:#4f46e5;--prt:#fff;--y:#f5b800;--b:#2f7de1;--g:#22a559;--r:#d64545;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10141f;--card:#1a2030;--tx:#e8ecf5;--mu:#97a2bd;--bd:#2a3248;--pr:#7c78ff}}
+:root[data-theme="dark"]{--bg:#10141f;--card:#1a2030;--tx:#e8ecf5;--mu:#97a2bd;--bd:#2a3248;--pr:#7c78ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px 40px}
+h1,h2,h3{margin:0}
+.brand{text-align:center;margin:28px 0 6px;font-size:30px;font-weight:800;color:var(--pr)}
+.sub{text-align:center;color:var(--mu);margin-bottom:26px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:14px}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:11px 16px;font-weight:600}
+.btn{background:var(--pr);color:var(--prt);width:100%}
+.btn.alt{background:transparent;color:var(--pr);border:1.5px solid var(--pr)}
+.ghost{background:transparent;color:var(--mu);padding:6px 10px}
+input,select,textarea{font:inherit;width:100%;padding:11px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);margin:6px 0 12px}
+label{font-size:13px;color:var(--mu);font-weight:600}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:16px}
+.who{font-size:14px;color:var(--mu)}
+.err{color:var(--r);font-size:14px;min-height:20px;margin-bottom:8px}
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--bg);border:1px solid var(--bd);color:var(--mu)}
+.st{color:#fff;padding:7px 14px;border-radius:99px;font-size:13px}
+.st.p{background:var(--y);color:#2b2200}.st.i{background:var(--b)}.st.r{background:var(--g)}
+.row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.meta{font-size:13px;color:var(--mu)}
+.msg{margin:8px 0;white-space:pre-wrap;word-break:break-word}
+.note{background:var(--bg);border:1px dashed var(--bd);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:14px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.empty{text-align:center;color:var(--mu);padding:20px}
+.hint{font-size:12px;color:var(--mu);text-align:center;margin-top:10px}
+</style></head>
+<body><div class="wrap" id="app"></div>
+<script>
+var DEPTS=["AI & Data Science","Computer Science","Information Technology","Electronics","Mechanical","Civil"];
+var YEARS=["1st Year","2nd Year","3rd Year","4th Year"];
+var CATS=["Academic","Infrastructure","Transport","Hostel","Library","Laboratory","Others"];
+var S=JSON.parse(sessionStorage.getItem("cp_session")||"null"),view=S?S.role:"home",error="",data={complaints:[],othersCount:0},F={d:"All",y:"All",c:"All"},timer=null;
+function api(m,u,b){return fetch(u,{method:m,headers:{"Content-Type":"application/json",Authorization:S?"Bearer "+S.token:""},body:b?JSON.stringify(b):undefined}).then(function(r){return r.json().then(function(j){if(r.status===401&&S&&u!=="/api/login"){S=null;sessionStorage.removeItem("cp_session");view="home";render()}if(!r.ok)throw new Error(j.error||"Error");return j})})}
+function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML}
+function fmt(t){return new Date(t).toLocaleString([],{dateStyle:"medium",timeStyle:"short"})}
+function stCls(s){return s==="Pending"?"p":s==="In Progress"?"i":"r"}
+function go(v){view=v;error="";render()}
+function refresh(){if(!S)return;api("GET","/api/complaints").then(function(j){data=j;if(view===S.role&&!document.activeElement.matches("textarea,input,select"))render()}).catch(function(){})}
+function start(){clearInterval(timer);timer=setInterval(refresh,5000);refresh()}
+function logout(){api("POST","/api/logout").catch(function(){});S=null;sessionStorage.removeItem("cp_session");clearInterval(timer);go("home")}
+function login(role){var b={role:role,password:document.getElementById("pw").value};if(role==="cr")b.reg=document.getElementById("reg").value;
+ api("POST","/api/login",b).then(function(j){S=j;sessionStorage.setItem("cp_session",JSON.stringify(j));view=j.role;error="";render();start()}).catch(function(e){error=e.message;render()})}
+function submitC(){var t=document.getElementById("ctext").value.trim();if(!t){error="Please type your complaint, suggestion or request.";render();return}
+ api("POST","/api/complaints",{text:t}).then(function(){error="";return api("GET","/api/complaints")}).then(function(j){data=j;document.getElementById("ctext").value="";render()}).catch(function(e){error=e.message;render()})}
+function cycle(id){api("PATCH","/api/complaints/"+id+"/status").then(refresh).then(function(){render()}).catch(function(e){alert(e.message)})}
+function del(id){if(!confirm("Delete this complaint permanently?"))return;api("DELETE","/api/complaints/"+id).then(refresh).then(function(){render()}).catch(function(e){alert(e.message)})}
+function clearResolved(){if(!confirm("Delete ALL resolved complaints permanently?"))return;api("POST","/api/complaints/clear-resolved").then(refresh).then(function(){render()}).catch(function(e){alert(e.message)})}
+function head(sub){return '<div class="top"><div><h2>ClassPulse</h2><div class="who">'+sub+'</div></div><button class="ghost" onclick="logout()">Logout</button></div>'}
+function opt(a,s){return ["All"].concat(a).map(function(x){return '<option'+(x===s?' selected':'')+'>'+esc(x)+'</option>'}).join("")}
+function render(){var h="",a=document.getElementById("app");
+ if(view==="home"){
+  h='<div class="brand">ClassPulse</div><div class="sub">Intelligent Feedback Management System</div><div class="card"><button class="btn" onclick="go(\'crlogin\')">Class Representative Login</button><div style="height:10px"></div><button class="btn alt" onclick="go(\'plogin\')">Principal Login</button></div><div class="hint">Authorized users only.</div>';
+ }else if(view==="crlogin"){
+  h='<div class="brand">CR Login</div><div class="card"><label>Register Number</label><input id="reg" inputmode="numeric" autocomplete="off"><label>Password</label><input id="pw" type="password"><div class="err">'+esc(error)+'</div><button class="btn" onclick="login(\'cr\')">Login</button><div style="height:8px"></div><button class="ghost" onclick="go(\'home\')">← Back</button></div>';
+ }else if(view==="plogin"){
+  h='<div class="brand">Principal Login</div><div class="card"><label>Password</label><input id="pw" type="password"><div class="err">'+esc(error)+'</div><button class="btn" onclick="login(\'principal\')">Login</button><div style="height:8px"></div><button class="ghost" onclick="go(\'home\')">← Back</button></div>';
+ }else if(view==="cr"&&S){
+  var u=S.user,keep=document.getElementById("ctext");keep=keep?keep.value:"";
+  h=head(esc(u.name)+' · '+esc(u.dept)+' · '+esc(u.year)+' · Section '+esc(u.sec));
+  if(data.othersCount)h+='<div class="note">🔔 '+data.othersCount+' Complaint'+(data.othersCount>1?'s':'')+' Submitted by other classes</div>';
+  h+='<div class="card"><h3>New Complaint / Suggestion / Request</h3><textarea id="ctext" rows="4" placeholder="Type your message to the Principal…">'+esc(keep)+'</textarea><div class="err">'+esc(error)+'</div><button class="btn" onclick="submitC()">Submit to Principal</button></div><h3 style="margin:18px 0 10px">My Submissions</h3>';
+  if(!data.complaints.length)h+='<div class="card empty">No complaints submitted yet.</div>';
+  data.complaints.forEach(function(c){h+='<div class="card"><div class="row"><span class="pill">'+esc(c.cat)+'</span><span class="st '+stCls(c.status)+'">'+c.status+'</span></div><div class="msg">'+esc(c.text)+'</div><div class="row"><div class="meta">'+fmt(c.time)+'</div><button class="ghost" style="color:var(--r)" onclick="del(\''+c.id+'\')">🗑 Delete</button></div></div>'});
+ }else if(view==="principal"&&S){
+  var list=data.complaints.filter(function(c){return(F.d==="All"||c.dept===F.d)&&(F.y==="All"||c.year===F.y)&&(F.c==="All"||c.cat===F.c)});
+  h=head("Principal Dashboard")+'<div class="card"><div class="two"><div><label>Department</label><select onchange="F.d=this.value;render()">'+opt(DEPTS,F.d)+'</select></div><div><label>Academic Year</label><select onchange="F.y=this.value;render()">'+opt(YEARS,F.y)+'</select></div></div><label>Category (AI-detected)</label><select onchange="F.c=this.value;render()">'+opt(CATS,F.c)+'</select><div class="meta">'+list.length+' complaint(s) · Tap a status button: Pending → In Progress → Resolved</div><div style="height:10px"></div><button class="btn alt" onclick="clearResolved()">Clear all Resolved complaints</button></div>';
+  if(!list.length)h+='<div class="card empty">No complaints for this selection.</div>';
+  list.forEach(function(c){h+='<div class="card"><div class="row"><div><b>'+esc(c.name)+'</b><div class="meta">'+esc(c.dept)+' · '+esc(c.year)+' · Section '+esc(c.sec)+'</div></div><button class="st '+stCls(c.status)+'" onclick="cycle(\''+c.id+'\')">'+c.status+'</button></div><div style="margin-top:6px"><span class="pill">'+esc(c.cat)+'</span></div><div class="msg">'+esc(c.text)+'</div><div class="row"><div class="meta">'+fmt(c.time)+'</div><button class="ghost" style="color:var(--r)" onclick="del(\''+c.id+'\')">🗑 Delete</button></div></div>'});
+ }else{view="home";return render()}
+ a.innerHTML=h}
+render();if(S)start();
+</script></body></html>
