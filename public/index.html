@@ -51,8 +51,10 @@ function logout(){api("POST","/api/logout").catch(function(){});S=null;sessionSt
 function login(role){var b={role:role,password:document.getElementById("pw").value};if(role==="cr")b.reg=document.getElementById("reg").value;
  api("POST","/api/login",b).then(function(j){S=j;sessionStorage.setItem("cp_session",JSON.stringify(j));view=j.role;error="";render();start()}).catch(function(e){error=e.message;render()})}
 function submitC(){var t=document.getElementById("ctext").value.trim();if(!t){error="Please type your complaint, suggestion or request.";render();return}
- api("POST","/api/complaints",{text:t}).then(function(){error="";return api("GET","/api/complaints")}).then(function(j){data=j;render()}).catch(function(e){error=e.message;render()})}
+ api("POST","/api/complaints",{text:t}).then(function(){error="";return api("GET","/api/complaints")}).then(function(j){data=j;document.getElementById("ctext").value="";render()}).catch(function(e){error=e.message;render()})}
 function cycle(id){api("PATCH","/api/complaints/"+id+"/status").then(refresh).then(function(){render()}).catch(function(e){alert(e.message)})}
+function del(id){if(!confirm("Delete this complaint permanently?"))return;api("DELETE","/api/complaints/"+id).then(refresh).then(function(){render()}).catch(function(e){alert(e.message)})}
+function clearResolved(){if(!confirm("Delete ALL resolved complaints permanently?"))return;api("POST","/api/complaints/clear-resolved").then(refresh).then(function(){render()}).catch(function(e){alert(e.message)})}
 function head(sub){return '<div class="top"><div><h2>ClassPulse</h2><div class="who">'+sub+'</div></div><button class="ghost" onclick="logout()">Logout</button></div>'}
 function opt(a,s){return ["All"].concat(a).map(function(x){return '<option'+(x===s?' selected':'')+'>'+esc(x)+'</option>'}).join("")}
 function render(){var h="",a=document.getElementById("app");
@@ -71,9 +73,9 @@ function render(){var h="",a=document.getElementById("app");
   data.complaints.forEach(function(c){h+='<div class="card"><div class="row"><span class="pill">'+esc(c.cat)+'</span><span class="st '+stCls(c.status)+'">'+c.status+'</span></div><div class="msg">'+esc(c.text)+'</div><div class="meta">'+fmt(c.time)+'</div></div>'});
  }else if(view==="principal"&&S){
   var list=data.complaints.filter(function(c){return(F.d==="All"||c.dept===F.d)&&(F.y==="All"||c.year===F.y)&&(F.c==="All"||c.cat===F.c)});
-  h=head("Principal Dashboard")+'<div class="card"><div class="two"><div><label>Department</label><select onchange="F.d=this.value;render()">'+opt(DEPTS,F.d)+'</select></div><div><label>Academic Year</label><select onchange="F.y=this.value;render()">'+opt(YEARS,F.y)+'</select></div></div><label>Category (AI-detected)</label><select onchange="F.c=this.value;render()">'+opt(CATS,F.c)+'</select><div class="meta">'+list.length+' complaint(s) · Tap a status button: Pending → In Progress → Resolved</div></div>';
+  h=head("Principal Dashboard")+'<div class="card"><div class="two"><div><label>Department</label><select onchange="F.d=this.value;render()">'+opt(DEPTS,F.d)+'</select></div><div><label>Academic Year</label><select onchange="F.y=this.value;render()">'+opt(YEARS,F.y)+'</select></div></div><label>Category (AI-detected)</label><select onchange="F.c=this.value;render()">'+opt(CATS,F.c)+'</select><div class="meta">'+list.length+' complaint(s) · Tap a status button: Pending → In Progress → Resolved</div><div style="height:10px"></div><button class="btn alt" onclick="clearResolved()">Clear all Resolved complaints</button></div>';
   if(!list.length)h+='<div class="card empty">No complaints for this selection.</div>';
-  list.forEach(function(c){h+='<div class="card"><div class="row"><div><b>'+esc(c.name)+'</b><div class="meta">'+esc(c.dept)+' · '+esc(c.year)+' · Section '+esc(c.sec)+'</div></div><button class="st '+stCls(c.status)+'" onclick="cycle(\''+c.id+'\')">'+c.status+'</button></div><div style="margin-top:6px"><span class="pill">'+esc(c.cat)+'</span></div><div class="msg">'+esc(c.text)+'</div><div class="meta">'+fmt(c.time)+'</div></div>'});
+  list.forEach(function(c){h+='<div class="card"><div class="row"><div><b>'+esc(c.name)+'</b><div class="meta">'+esc(c.dept)+' · '+esc(c.year)+' · Section '+esc(c.sec)+'</div></div><button class="st '+stCls(c.status)+'" onclick="cycle(\''+c.id+'\')">'+c.status+'</button></div><div style="margin-top:6px"><span class="pill">'+esc(c.cat)+'</span></div><div class="msg">'+esc(c.text)+'</div><div class="row"><div class="meta">'+fmt(c.time)+'</div><button class="ghost" style="color:var(--r)" onclick="del(\''+c.id+'\')">🗑 Delete</button></div></div>'});
  }else{view="home";return render()}
  a.innerHTML=h}
 render();if(S)start();
